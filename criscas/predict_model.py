@@ -97,7 +97,7 @@ class BEDICT_CriscasModel:
 
             with torch.set_grad_enabled(False):
                 logsoftmax_scores, fattn_w_scores, hattn_w_scores = model(X_batch)
-
+                # logsoftmax_scores : classfication score, fattn_w_scores: final attentions, hattn_w_scores: perious attentions
                 seqid_fattnw_map.update({seqid:fattn_w_scores[c].detach().cpu() for c, seqid in enumerate(b_seqs_id)})
                 seqid_hattnw_map.update({seqid:hattn_w_scores[c].detach().cpu() for c, seqid in enumerate(b_seqs_id)})
 
@@ -199,6 +199,7 @@ class BEDICT_CriscasModel:
     def select_prediction(self, pred_w_attn_runs_df, option):
         assert option in {'mean', 'median', 'max', 'min'}, "selection option should be in {mean, median, min, max}!"
         if option == 'mean':
+            a =  pred_w_attn_runs_df.groupby(['id', 'base_pos', 'model_name'])
             pred_w_attn_df = pred_w_attn_runs_df.groupby(['id', 'base_pos', 'model_name']).mean().reset_index()
         else:
             pred_w_attn_df = pred_w_attn_runs_df.groupby(['id', 'base_pos', 'model_name']).apply(self._select_prediction_run, option).reset_index(drop=True)

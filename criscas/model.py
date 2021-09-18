@@ -250,6 +250,7 @@ class Categ_CrisCasTransformer(nn.Module):
                  mlp_embed_factor=2, nonlin_func=nn.ReLU(), 
                  pdropout=0.3, num_transformer_units=12, 
                  pooling_mode='attn', num_classes=2, per_base=False):
+
         
         super().__init__()
         
