@@ -47,12 +47,13 @@ def sum(list):
           s+=a
      return s
 
+editor='Target-AID'
 line = 0
 nums = []
 num0 = 0
 plot = [0 for a in range(101)]
 plot_nozero = [0 for a in range(101)]
-with open('/home/data/bedict_reproduce/data/41467_2021_25375_MOESM2_ESM.csv', 'r') as f:
+with open('/home/data/bedict_reproduce/data/test_data/'+editor+'/perbase.csv', 'r') as f:
      reader = csv.reader(f)
      for row in reader:
           line += 1
@@ -75,7 +76,5 @@ with open('/home/data/bedict_reproduce/data/41467_2021_25375_MOESM2_ESM.csv', 'r
      # plt.title(("Total:%d|%d. Median:%d. Public:%d. Zero:%d.".format(len(nums)-num0, len(nums), mediannum(nums), publicnum(nums), num0)))
      # plt.title("Total As:"+str(len(nums)-num0)+"|"+str(len(nums)) +". Zero:"+str(num0) +". Probs>1:"+str(sum(plot_nozero))+". Median(no0):"+str(mediannum(plot_nozero))+". Public(no0):"+str(publicnum(plot_nozero)))
      plt.title(str(len(nums)-num0)+"|"+str(len(nums)) +". "+str(num0) +". "+str(sum(plot_nozero)) +". "+str(mediannum(plot_nozero))+". "+str(publicnum(plot_nozero)))
-     plt.savefig('/home/data/bedict_reproduce/data/count.png')
+     plt.savefig('/home/data/bedict_reproduce/data/test_data/'+editor+'count.png')
      plt.show()
-     # print(num0)
-     # print(len(nums))

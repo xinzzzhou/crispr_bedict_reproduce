@@ -154,7 +154,7 @@ class BEDICT_CriscasModel:
 
         if self.base_editor in {'ABEmax', 'ABE8e'}:
             target_base = 'A'
-        elif self.base_editor in {'BE4max', 'Target-AID'}:
+        elif self.base_editor in {'CBE4max', 'Target-AID'}:
             target_base = 'C'
 
         proc_df = self._process_df(df, target_base)

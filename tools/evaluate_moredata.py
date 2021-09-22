@@ -1,7 +1,7 @@
 '''
-Evaluate sampled data
+Evaluate more data
 Author: Xin Zhou
-Date: 17 Sep, 2021
+Date: 22 Sep, 2021
 '''
 
 import argparse
@@ -10,22 +10,29 @@ from sklearn import metrics
 import matplotlib.pyplot as plt
 import csv
 from collections import defaultdict
+import os
 
-def findA(seq):
+def findA(seq, editor):
     idx = 0
     position = []
     for s in seq:
         idx += 1
-        if s == 'A':
+        #
+        if editor in {'ABEmax', 'ABE8e'}:
+            target_base = 'A'
+        elif editor in {'CBE4max', 'Target-AID'}:
+            target_base = 'C'
+        #
+        if s == target_base:
             position.append(idx)
     return position
 
-def get_value(seqids, pred_reader, true_reader, label_threshold):
+def get_value(seqids, pred_reader, true_reader, label_threshold, editor):
     dict_true_pred = defaultdict(list)
 
     for row in true_reader:
         if row['ID'] in seqids:
-            Apos = findA(row['Sequence'])
+            Apos = findA(row['Sequence'], editor)
             for idx in Apos:
                 true_freq = row['Position_'+str(idx)]
                 key = row['ID'] + "|" + str(idx)
@@ -55,70 +62,49 @@ def get_value(seqids, pred_reader, true_reader, label_threshold):
 #
 #     return ids
 
-def get_pred_true(base_dir, pred_path, true_path, sample_path, label_threshold):
+def get_pred_true(base_dir, label_threshold, editor):
     # not all sequences have a ground truth, we should pick up
-    pred_file = open(base_dir + pred_path, 'r')
+    pred_file = open(os.path.join(base_dir, 'data/test_data', editor, 'predictions/predictions_predoption_mean.csv'), 'r')
     pred_reader = csv.DictReader(pred_file)
-    true_file = open(base_dir + true_path, 'r')
+    true_file = open(os.path.join(base_dir, 'data/test_data', editor, 'perbase.csv'), 'r')
     true_reader = csv.DictReader(true_file)
-    sample_file = open(base_dir + sample_path, 'r')
+    sample_file = open(os.path.join(base_dir, 'data/test_data', editor, 'perbase_testdata_format.csv'), 'r')
     sample_reader = csv.DictReader(sample_file)
     # seqids = get_seqid(sample_reader,true_reader)
     s_ids, t_ids = [], []
     for s_row in sample_reader:
-        s_ids.append(s_row['\ufeffID'])
+        s_ids.append(s_row['ID'])
     for t_row in true_reader:
         t_ids.append(t_row['ID'])
     seqids = list(set(s_ids).intersection(set(t_ids)))
     sample_file.seek(0,0)
     true_file.seek(0,0)
     #
-    pred, true = get_value(seqids, pred_reader, true_reader, label_threshold)
+    pred, true = get_value(seqids, pred_reader, true_reader, label_threshold, editor)
     return pred, true
 
-def roc_auc(pred, true):
+def roc_auc(pred, true, base_dir, editor):
     fpr, tpr, thresholds = metrics.roc_curve(true, pred, pos_label=1)
     auc = metrics.auc(fpr, tpr)
     print(auc)
     # plot
-    plt.xlabel('ground truth')
-    plt.ylabel('count')
+    plt.xlabel('fpr')
+    plt.ylabel('tpr')
     plt.scatter(fpr, tpr)
     plt.legend()
     plt.title("ROC curve")
-    plt.savefig('/home/data/bedict_reproduce/data/sample_data/roc.png')
+    plt.savefig(os.path.join(base_dir,'data/test_data', editor, 'roc_'+str(auc)+'.png'))
     plt.show()
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train crispr.")
     parser.add_argument('--base_dir', type=str, default="/home/data/bedict_reproduce",
                         help='path to the project.')
-    parser.add_argument('--true_path', type=str, default="/data/41467_2021_25375_MOESM2_ESM.csv",
-                        help='file path to the truth')
-    parser.add_argument('--pred_path', type=str, default="/data/sample_data/predictions/predictions_predoption_mean.csv",
-                        help='file path to the prediction')
-    parser.add_argument('--sample_data', type=str, default="/data/sample_data/abemax_sampledata.csv")
-    parser.add_argument('--label_threshold', type=float, default=24.0)
+    parser.add_argument('--label_threshold', type=float, default=1.0)
+    parser.add_argument('--editor', type=str, default="Target-AID")
     return parser.parse_args()
 
 if __name__ == '__main__':
-    # args = parse_args()
-    # pred, true = get_pred_true(args.base_dir, args.pred_path, args.true_path, args.sample_data, args.label_threshold)
-    # roc_auc(pred, true)
-   '''
-   Example--------------
-    import numpy as np
-
-    y = np.array([1, 1, 2, 2])
-    pred = np.array([0.1, 0.4, 0.35, 0.8])
-    fpr, tpr, thresholds = metrics.roc_curve(y, pred, pos_label=2)
-    auc = metrics.auc(fpr, tpr)
-    print(auc)
-    # plot
-    plt.xlabel('ground truth')
-    plt.ylabel('count')
-    plt.scatter(tpr, fpr)
-    plt.legend()
-    plt.title("ROC curve")
-    plt.show()
-    '''
+    args = parse_args()
+    pred, true = get_pred_true(args.base_dir, args.label_threshold, args.editor)
+    roc_auc(pred, true, args.base_dir, args.editor)
