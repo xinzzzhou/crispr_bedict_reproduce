@@ -199,7 +199,6 @@ class BEDICT_CriscasModel:
     def select_prediction(self, pred_w_attn_runs_df, option):
         assert option in {'mean', 'median', 'max', 'min'}, "selection option should be in {mean, median, min, max}!"
         if option == 'mean':
-            a =  pred_w_attn_runs_df.groupby(['id', 'base_pos', 'model_name'])
             pred_w_attn_df = pred_w_attn_runs_df.groupby(['id', 'base_pos', 'model_name']).mean().reset_index()
         else:
             pred_w_attn_df = pred_w_attn_runs_df.groupby(['id', 'base_pos', 'model_name']).apply(self._select_prediction_run, option).reset_index(drop=True)
