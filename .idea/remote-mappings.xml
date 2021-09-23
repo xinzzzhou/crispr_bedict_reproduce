@@ -6,7 +6,7 @@
         <remote-mappings server-id="python@sftp://root@172.16.55.225:5900/opt/anaconda3/envs/pt180/bin/python3.8">
           <settings>
             <list>
-              <mapping local-root="$PROJECT_DIR$" remote-root="/home/data/bedict" />
+              <mapping local-root="$PROJECT_DIR$" remote-root="/home/data/bedict_reproduce" />
             </list>
           </settings>
         </remote-mappings>

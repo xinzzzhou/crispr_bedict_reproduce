@@ -10,7 +10,7 @@ from criscas.predict_model import *
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train crispr.")
-    parser.add_argument('--editor', type=str, default="CBE4max",
+    parser.add_argument('--editor', type=str, default="Target-AID",
                         help='Input editor. Selection: ABEmax, ABE8e, CBE4max, Target-AID')
     parser.add_argument('--base_dir', type=str, default="/home/data/bedict_reproduce",
                         help='path to the project.')
@@ -24,17 +24,22 @@ if __name__ == '__main__':
 
     '''Specify device (i.e. CPU or GPU) to run the models on'''
     report_available_cuda_devices()
-    device = get_device(True, 0)
+    device = get_device(True, 2)
 
     '''Create a BE-DICT model by sepcifying the target base editor'''
-    bedict = BEDICT_CriscasModel(args.editor, device)
+    model = BEDICT_CriscasModel(args.editor, device)
+
+    criteria = torch.nn.CrossEntropyLoss(ignore_index=-1)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=(args.beta1, args.beta2), eps=args.eps,
+                                 weight_decay=args.wdecay, amsgrad=False)
+    model.train()
     # load data
     seq_df = pd.read_csv(os.path.join(args.base_dir, 'data/test_data', args.editor, 'perbase_testdata_format.csv'), header=0).iloc[:,1:]
-    pred_w_attn_runs_df, proc_df = bedict.predict_from_dataframe(seq_df)
+    pred_w_attn_runs_df, proc_df = model.predict_from_dataframe(seq_df)
     # merge 5 runs result
-    pred_w_attn_df = bedict.select_prediction(pred_w_attn_runs_df, args.pred_option)
-    # record the result
+    pred_w_attn_df = model.select_prediction(pred_w_attn_runs_df, args.pred_option)
 
+    # record the result
     csv_dir = create_directory(os.path.join(args.base_dir, 'data/test_data',  args.editor, 'predictions'))
     pred_w_attn_runs_df.to_csv(os.path.join(csv_dir, f'predictions_allruns.csv'))
     pred_w_attn_df.to_csv(os.path.join(csv_dir, f'predictions_predoption_{args.pred_option}.csv'))
