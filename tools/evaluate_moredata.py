@@ -160,12 +160,13 @@ def parse_args():
     parser.add_argument('--base_dir', type=str, default="/home/data/bedict_reproduce",
                         help='path to the project.')
     parser.add_argument('--label_threshold', type=float, default=1.0)
-    parser.add_argument('--editor', type=str, default="Target-AID")
+    parser.add_argument('--editor', type=str, default="ABEmax")
     return parser.parse_args()
+
 
 if __name__ == '__main__':
     args = parse_args()
-    # pred, true = get_pred_true(args.base_dir, args.label_threshold, args.editor, "auc")
-    # roc_auc(pred, true, args.base_dir, args.editor)
-    positions_pred_true = get_pred_true(args.base_dir, args.label_threshold, args.editor, "acc")
-    acc(positions_pred_true)
+    pred, true = get_pred_true(args.base_dir, args.label_threshold, args.editor, "auc")
+    roc_auc(pred, true, args.base_dir, args.editor)
+    # positions_pred_true = get_pred_true(args.base_dir, args.label_threshold, args.editor, "acc")
+    # acc(positions_pred_true)

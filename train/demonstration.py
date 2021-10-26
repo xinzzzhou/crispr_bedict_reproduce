@@ -5,7 +5,7 @@ Date: 17 Sep, 2021
 '''
 import argparse
 from criscas.utilities import create_directory, get_device, report_available_cuda_devices
-from criscas.predict_model import *
+from criscas.predict_model_training import *
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train crispr.")

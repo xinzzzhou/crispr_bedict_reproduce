@@ -6,6 +6,7 @@ from torch import nn
 from torch.utils.data import DataLoader
 from matplotlib import pyplot as plt
 import seaborn as sns
+from collections import defaultdict
 from .model import Categ_CrisCasTransformer
 from .data_preprocess import process_perbase_df
 from .dataset import create_datatensor
@@ -13,18 +14,43 @@ from .utilities import ReaderWriter, build_probscores_df, check_na
 from .attnetion_analysis import filter_attn_rows
 
 
-class BEDICT_CriscasModel:
+class BEDICT_CriscasModel(torch.nn.Module):
     def __init__(self, base_editor, device):
+        super(BEDICT_CriscasModel, self).__init__()
+        
+        if base_editor in {'ABEmax', 'ABE8e'}:
+            self.target_base = 'A'
+        elif base_editor in {'CBE4max', 'Target-AID'}:
+            self.target_base = 'C'
+
         self.base_editor = base_editor
         self.device = device
 
-    def _process_df(self, df, target_base):
-        print('--- processing input data frame ---')
-        df = process_perbase_df(df, target_base)
-        return df
+    # def forward(self, df, batch_size):
+    def forward(self, df, batch_size, lr, beta1, beta2, eps, wdecay, threshold):
+        data_frame, target = self._process_df(df)
+        data_tensor = self._construct_datatensor(data_frame, target, threshold)
+        data_loader = self._construct_dloader(data_tensor, batch_size)
+        base_model = self._build_base_model().to(self.device)
 
-    def _construct_datatensor(self, df, refscore_available=False):
-        dtensor = create_datatensor(df, per_base=True, refscore_available=refscore_available)
+        criteria = torch.nn.CrossEntropyLoss(ignore_index=-1)
+        optimizer = torch.optim.Adam(base_model.parameters(), lr=lr, betas=(beta1, beta2), eps=eps,
+                                     weight_decay=wdecay, amsgrad=False)
+
+        # seqid_fattnw_map, seqid_hattnw_map, predictions_df = self._run_training(base_model, data_loader, criteria, optimizer)
+        seqid_fattnw_map, seqid_hattnw_map, predictions_df = self._run_training(base_model, data_loader, criteria, optimizer)
+        pred_w_attn_df = self._join_prediction_w_attn(predictions_df, seqid_fattnw_map, seqid_hattnw_map)
+
+        pass
+
+    def _process_df(self, df):
+        print('--- processing input data frame ---')
+        df, target = process_perbase_df(df, self.target_base)
+        return df, target
+
+    def _construct_datatensor(self, df, target, threshold, refscore_available=False):
+        dtensor = create_datatensor(df, target, threshold, per_base=True, refscore_available=refscore_available)
+        # dtensor = create_datatensor(df, target, per_base=True)
         return dtensor
 
     def _construct_dloader(self, dtensor, batch_size):
@@ -79,6 +105,62 @@ class BEDICT_CriscasModel:
             m.eval()
         return model
 
+    def _run_training(self, model, dloader, criteria, optimizer):
+
+        device = self.device
+        prob_scores = []
+        seqs_ids_lst = []
+        base_pos_lst = []
+        seqid_fattnw_map = {}
+        seqid_hattnw_map = {}
+
+        for i_batch, samples_batch in enumerate(dloader):
+            X_batch, y_score, y_categ, mask, b_seqs_indx, b_seqs_id = samples_batch
+
+            X_batch = X_batch.to(device)
+            mask = mask.to(device)
+
+            train_loss = 0
+            train_step = 0
+            with torch.set_grad_enabled(False):
+                logsoftmax_scores, fattn_w_scores, hattn_w_scores = model(X_batch)
+                # logsoftmax_scores : classfication score, fattn_w_scores: final attentions, hattn_w_scores: perious attentions
+                seqid_fattnw_map.update({seqid: fattn_w_scores[c].detach().cpu() for c, seqid in enumerate(b_seqs_id)})
+                seqid_hattnw_map.update({seqid: hattn_w_scores[c].detach().cpu() for c, seqid in enumerate(b_seqs_id)})
+
+                # __, y_pred_clss = torch.max(logsoftmax_scores, -1)
+
+                # print('y_pred_clss.shape', y_pred_clss.shape)
+                # use mask to retrieve relevant entries
+                tindx = torch.where(mask.type(torch.bool))
+
+                # pred_class.extend(y_pred_clss[tindx].view(-1).tolist())
+                prob_scores.append((torch.exp(logsoftmax_scores[tindx].detach().cpu())).numpy())
+
+                seqs_ids_lst.extend([b_seqs_id[i] for i in tindx[0].tolist()])
+                base_pos_lst.extend(tindx[1].tolist())  # positions of target base
+
+                pred = prob_scores[0][:, 1]
+                pass
+                # torch.cuda.ipc_collect()
+                # torch.cuda.empty_cache()
+        # end of epoch
+        # print("+"*35)
+        prob_scores_arr = np.concatenate(prob_scores, axis=0)
+        predictions_df = build_probscores_df(seqs_ids_lst, prob_scores_arr, base_pos_lst)
+        #
+        pred = predictions_df['class1']
+        targ = [0]
+        #
+        CEloss = criteria(pred, targ)
+        train_loss += CEloss.item()
+        train_step += 1
+        #
+        optimizer.zero_grad()
+        CEloss.backward()
+        optimizer.step()
+        return seqid_fattnw_map, seqid_hattnw_map, predictions_df
+
     def _run_prediction(self, model, dloader):
         
         device = self.device
@@ -97,7 +179,7 @@ class BEDICT_CriscasModel:
 
             with torch.set_grad_enabled(False):
                 logsoftmax_scores, fattn_w_scores, hattn_w_scores = model(X_batch)
-
+                # logsoftmax_scores : classfication score, fattn_w_scores: final attentions, hattn_w_scores: perious attentions
                 seqid_fattnw_map.update({seqid:fattn_w_scores[c].detach().cpu() for c, seqid in enumerate(b_seqs_id)})
                 seqid_hattnw_map.update({seqid:hattn_w_scores[c].detach().cpu() for c, seqid in enumerate(b_seqs_id)})
 
@@ -149,16 +231,16 @@ class BEDICT_CriscasModel:
         return pred_w_attn_df
 
 
-    def predict_from_dataframe(self, df, batch_size=500):
+    def predict_from_dataframe(self, df, threshold, batch_size=500):
         # TODO: add target run num for specific editor
 
-        if self.base_editor in {'ABEmax', 'ABE8e'}:
-            target_base = 'A'
-        elif self.base_editor in {'BE4max', 'Target-AID'}:
-            target_base = 'C'
+        # if self.base_editor in {'ABEmax', 'ABE8e'}:
+        #     target_base = 'A'
+        # elif self.base_editor in {'CBE4max', 'Target-AID'}:
+        #     target_base = 'C'
 
-        proc_df = self._process_df(df, target_base)
-        dtensor = self._construct_datatensor(proc_df)
+        proc_df, target = self._process_df(df)
+        dtensor = self._construct_datatensor(proc_df, target, threshold)
         dloader = self._construct_dloader(dtensor, batch_size)
 
         pred_w_attn_runs_df = pd.DataFrame()

@@ -6,7 +6,6 @@ import pandas as pd
 from matplotlib import pyplot as plt
 import seaborn as sns
 
-
 def build_probscores_df(ids, prob_scores, base_pos=None):
 
     prob_scores_dict = {}
@@ -21,6 +20,7 @@ def build_probscores_df(ids, prob_scores, base_pos=None):
         df_dict = {
             'id': ids,
             'base_pos':base_pos
+            # 'target':target
         }
     df_dict.update(prob_scores_dict)
     predictions_df = pd.DataFrame(df_dict)

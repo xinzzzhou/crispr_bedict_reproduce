@@ -8,7 +8,7 @@ from torch import nn
 
 import criscas
 from criscas.utilities import create_directory, get_device, report_available_cuda_devices
-from criscas.predict_model import *
+from criscas.predict_model_training import *
 
 # base_dir = os.path.abspath('...')
 base_dir = "/home/data/bedict_reproduce"

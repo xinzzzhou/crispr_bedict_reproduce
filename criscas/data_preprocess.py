@@ -18,13 +18,19 @@ def process_perbase_df(df, target_base):
     Note:
         assumed columns in the dataframe are: [ID, seq, allCounts, V1, V2, ..., V20]
     """
+    # ground truth
+    base_target = df[['Position_1', 'Position_2', 'Position_3', 'Position_4', 'Position_5', 'Position_6', 'Position_7',
+                      'Position_8', 'Position_9', 'Position_10', 'Position_11', 'Position_12', 'Position_13',
+                      'Position_14', 'Position_15', 'Position_16', 'Position_17', 'Position_18', 'Position_19',
+                      'Position_20']] * 0.01
+    #
     target_cols = ['ID', 'seq']
     df = df[target_cols].copy()
     # harmonize sequence string representation to capitalized form
     df['seq'] = df['seq'].str.upper()
     # allocate sequences to train vs. val/test
     df['seq_type'] = 1
-
+    #
     baseseq_df = df['seq'].apply(get_char)
     baseseq_df.columns = [f'B{i}' for  i in range(1, 21)]
     base_mask = (baseseq_df == target_base) * 1
@@ -44,7 +50,7 @@ def process_perbase_df(df, target_base):
     base_df.reset_index(inplace=True)
 
 
-    return base_df
+    return base_df, base_target
 
 def validate_df(df):
     mask_cols = [f'M{i}' for  i in range(1, 21)]

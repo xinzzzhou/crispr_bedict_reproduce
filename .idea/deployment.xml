@@ -44,6 +44,13 @@
           </mappings>
         </serverdata>
       </paths>
+      <paths name="root@172.16.55.225:5900 password (6)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/data/bedict_reproduce" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
     </serverData>
     <option name="myAutoUpload" value="ALWAYS" />
   </component>
